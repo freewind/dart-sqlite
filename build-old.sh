@@ -8,7 +8,7 @@ fi
 
 build() {
   SRCS="src/dart_sqlite.cc -lsqlite3"
-  COPTS="-O2 -DDART_SHARED_LIB -I$DART_SDK/include -rdynamic -fPIC"
+  COPTS="-O2 -DDART_SHARED_LIB -I$DART_SDK -rdynamic -fPIC"
   OUTNAME="dart_sqlite"
 
   UNAME=`uname`
