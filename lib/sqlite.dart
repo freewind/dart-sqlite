@@ -88,7 +88,7 @@ class Database {
    */
   Statement prepare(String query) {
     _checkOpen();
-    return new Statement._internal(_db, sql);
+    return new Statement._internal(_db, query);
   }
 
   /**
