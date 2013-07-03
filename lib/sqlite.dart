@@ -2,9 +2,12 @@
 // Licensed under the Apache License, Version 2.0 (the "License")
 // You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-#library("sqlite");
+library sqlite;
 
-#import("dart-ext:dart_sqlite");
+import "dart-ext:dart_sqlite";
+
+import "dart:collection";
+import "dart:mirrors";
 
 /// A connection to a SQLite database. 
 ///
@@ -23,7 +26,7 @@ class Database {
   Database.inMemory() : this(":memory:");
 
   /// Returns the version number of the SQLite library.
-  static get version() => _version();
+  static get version => _version();
 
   String toString() => "<Sqlite: ${path}>";
 
@@ -68,9 +71,9 @@ class Database {
 
   /// Executes a single SQL statement.
   /// See [Statement.execute].
-  int execute(String statement, [params=const [], bool callback(Row)]) {
+  int execute(String query, [params=const [], bool callback(Row)]) {
     _checkOpen();
-    statement = prepare(statement);
+    Statement statement = prepare(query);
     try {
       return statement.execute(params, callback);
     } finally {
@@ -225,13 +228,13 @@ class Row {
 
   toString() => _data.toString();
 
-  noSuchMethod(String method, List args) {
-    if (args.length == 0 && method.startsWith("get:")) {
-      String property = method.substring(4);
+  noSuchMethod(Invocation msg) {
+    if (msg.isGetter) {
+      var property = MirrorSystem.getName(msg.memberName);
       var index = _resultInfo.columnToIndex[property];
       if (index != null) return _data[index];
     }
-    return super.noSuchMethod(method, args);
+    return super.noSuchMethod(msg);
   }
 }
 

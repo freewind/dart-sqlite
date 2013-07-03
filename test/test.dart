@@ -1,117 +1,146 @@
-#import('dart:io', prefix: 'io');
-#import('../lib/sqlite.dart', prefix: 'sqlite');
+import "dart:io" as io;
+import "dart:math";
+import "package:unittest/unittest.dart";
 
-testFirst(db) {
-  var row = db.first("SELECT ?+2, UPPER(?)", [3, "hello"]);
-  Expect.equals(5, row[0]);
-  Expect.equals("HELLO", row[1]);
+import "../lib/sqlite.dart" as sqlite;
+
+createBlogTable(sqlite.Database db) {
+  db.execute("CREATE TABLE posts (title text, body text)");
 }
 
-testRow(db) {
+testFirst(sqlite.Database db) {
+  var row = db.first("SELECT ?+2, UPPER(?)", [3, "hEll0"]);
+  expect(row[0], equals(5));
+  expect(row[1], equals("HELL0"));
+}
+
+testRow(sqlite.Database db) {
   var row = db.first("SELECT 42 AS foo");
-  Expect.equals(0, row.index);
-
-  Expect.equals(42, row[0]);
-  Expect.equals(42, row['foo']);
-  Expect.equals(42, row.foo);
-
-  Expect.listEquals([42], row.asList());
-  Expect.mapEquals({"foo": 42}, row.asMap());
+  expect(row.index, equals(0));
+  expect(row[0], equals(42));
+  expect(row['foo'], equals(42));
+  expect(row.foo, equals(42));
+  expect(row.asList(), equals([42]));
+  expect(row.asMap(), equals({"foo": 42}));
 }
 
-testBulk(db) {
+testBulk(sqlite.Database db) {
   createBlogTable(db);
   var insert = db.prepare("INSERT INTO posts (title, body) VALUES (?,?)");
   try {
-    Expect.equals(1, insert.execute(["hi", "hello world"]));
-    Expect.equals(1, insert.execute(["bye", "goodbye cruel world"]));
+    expect(insert.execute(["hi", "hello world"]), 1);
+    expect(insert.execute(["bye", "goodbye cruel world"]), 1);
   } finally {
     insert.close();
   }
   var rows = [];
-  Expect.equals(2, db.execute("SELECT * FROM posts", callback: (row) { rows.add(row); }));
-  Expect.equals(2, rows.length);
-  Expect.equals("hi", rows[0].title);
-  Expect.equals("bye", rows[1].title);
-  Expect.equals(0, rows[0].index);
-  Expect.equals(1, rows[1].index);
+  expect(db.execute("SELECT * FROM posts", [], (row) {
+    rows.add(row); 
+  }), 2);
+  expect(rows.length, equals(2));
+  expect(rows[0].title, "hi");
+  expect(rows[1].title, "bye");
+  expect(rows[0].index, 0);
+  expect(rows[1].index, 1);
   rows = [];
-  Expect.equals(1, db.execute("SELECT * FROM posts", callback: (row) {
+  expect(db.execute("SELECT * FROM posts", [], (row) {
     rows.add(row);
     return true;
-  }));
-  Expect.equals(1, rows.length);
-  Expect.equals("hi", rows[0].title);  
+  }), 1);
+  expect(rows.length, 1);
+  expect(rows[0].title, "hi");
 }
 
-testTransactionSuccess(db) {
+testTransactionSuccess(sqlite.Database db) {
   createBlogTable(db);
-  Expect.equals(42, db.transaction(() {
-    db.execute("INSERT INTO posts (title, body) VALUES (?,?)");
+  expect(db.transaction(() {
+    db.execute("INSERT INTO posts (title, body) VALUES (?,?)", ["", ""]);
     return 42;
-  }));
-  Expect.equals(1, db.execute("SELECT * FROM posts"));
+  }), 42);
+  expect(db.execute("SELECT * FROM posts"), 1);
 }
 
-testTransactionFailure(db) {
+class UnsupportedOperationException implements Exception {
+  final String _msg;
+  
+  const UnsupportedOperationException([this._msg]);
+  
+  String toString() {
+    if (_msg == null) {
+      return "Exception";
+    }
+    return "Exception: ${_msg}";
+  }
+}
+
+testTransactionFailure(sqlite.Database db) {
   createBlogTable(db);
   try {
     db.transaction(() {
-      db.execute("INSERT INTO posts (title, body) VALUES (?,?)");
-      throw new UnsupportedOperationException("whee");
+      db.execute("INSERT INTO posts (title, body) VALUES (?,?)", ["", ""]);
+      throw new UnsupportedOperationException("Abort, please!");
     });
     fail("Exception should have been propagated");
-  } catch (UnsupportedOperationException expected) {}
-  Expect.equals(0, db.execute("SELECT * FROM posts"));
+  } on UnsupportedOperationException catch(e) {}
+  expect(db.execute("SELECT * FROM posts", [], (row) {
+    fail("Callback for rows should not be called.");
+  }), 0);
 }
 
-testSyntaxError(db) {
-  Expect.throws(() => db.execute("random non sql"), (x) => x is sqlite.SqliteSyntaxException);
+testSyntaxError(sqlite.Database db) {
+  expect(() => db.execute("random non sql"), 
+    throwsA(predicate((e) => e is sqlite.SqliteSyntaxException, 
+                      "is a SqliteSyntaxException")));
 }
 
-testColumnError(db) {
-  Expect.throws(() => db.first("select 2+2")['qwerty'], (x) => x is sqlite.SqliteException);
+testColumnError(sqlite.Database db) {
+  expect(() => db.first("select 2+2")['qwerty'], 
+      throwsA(predicate((e) => e is sqlite.SqliteException, 
+      "is a SqliteException")));
 }
 
 main() {
-  [testFirst, testRow, testBulk, testSyntaxError, testColumnError].forEach((test) {
-    connectionOnDisk(test);
-    connectionInMemory(test);
+  group('inMemory', () {
+    sqlite.Database db = null;
+    setUp(() {
+      db = new sqlite.Database.inMemory();
+      expect(db, isNotNull);
+    });
+    tearDown(() {
+      expect(db, isNotNull);
+      db.close();
+    });
+    test("OpenClose", () {});
+    test("BasicSQL", () { testFirst(db); });
+    test("TestRow", () { testRow(db); });
+    test("TestBulk", () { testBulk(db); });
+    test("TransactionSuccess", () { testTransactionSuccess(db); });
+    test("TransactionFailure", () { testTransactionFailure(db); });
+    test("SyntaxError", () { testSyntaxError(db); });
+    test("ColumnError", () { testColumnError(db); });
   });
-  print("All tests pass!");
-}
-
-createBlogTable(db) {
-  db.execute("CREATE TABLE posts (title text, body text)");
-}
-
-deleteWhenDone(callback(filename)) {
-  var nonce = (Math.random() * 100000000).toInt();
-  var filename = "dart-sqlite-test-${nonce}";
-  try {
-    callback(filename);
-  } finally {
-    var f = new io.File(filename);
-    if (f.existsSync()) f.deleteSync();
-  }
-}
-
-connectionOnDisk(callback(connection)) {
-  deleteWhenDone((filename) {
-    var c = new sqlite.Database(filename);
-    try {
-      callback(c);
-    } finally {
-      c.close();
-    }
+  
+  var nonce = new Random().nextInt(9999);
+  String db_file = "./sqlite-dbtest-${nonce}.db";
+  group('file', () {
+    sqlite.Database db = null;
+    setUp(() {
+      db = new sqlite.Database(db_file);
+      expect(db, isNotNull);
+    });
+    tearDown(() {
+      expect(db, isNotNull);
+      db.close();
+      var f = new io.File(db_file);
+      if (f.existsSync()) f.deleteSync();
+    });
+    test("OpenClose", () {});
+    test("BasicSQL", () { testFirst(db); });
+    test("TestRow", () { testRow(db); });
+    test("TestBulk", () { testBulk(db); });
+    test("TransactionSuccess", () { testTransactionSuccess(db); });
+    test("TransactionFailure", () { testTransactionFailure(db); });
+    test("SyntaxError", () { testSyntaxError(db); });
+    test("ColumnError", () { testColumnError(db); });
   });
-}
-
-connectionInMemory(callback(connection)) {
-  var c = new sqlite.Database.inMemory();
-  try {
-    callback(c);
-  } finally {
-    c.close();
-  }
 }

@@ -1,0 +1,5 @@
+name: dart-sqlite
+description: An sqlite wrapper for dart.
+
+dependencies:
+  unittest: any
