@@ -6,10 +6,10 @@ dart-sqlite: SQLite bindings for the Dart VM
 ## Linux/OSX
 
 Dependencies:
- * gyp
- * sqlite3-dev
+ * [gyp](https://code.google.com/p/gyp/)
+ * sqlite3 (-dev package)
  * g++ toolchain
- * Dart SDK
+ * [Dart SDK](http://www.dartlang.org)
 
 First, set the enviroinment variable `DART_SDK` to point to your Dart SDK location. Then:
 
