@@ -36,7 +36,7 @@ doc() {
 
 test() {
   build && \
-  $DART_SDK/bin/dart test/test.dart
+  $DART_SDK/bin/dart test/sqlite_test.dart
 }
 
 if [ -z "$1" ]; then
