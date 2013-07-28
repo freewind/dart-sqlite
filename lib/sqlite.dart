@@ -244,7 +244,7 @@ class _ResultInfo {
  * Column names are not guaranteed unless `AS` clause is used in the query.
  */
 class Row {
-  final List<String> _resultInfo;
+  final _ResultInfo _resultInfo;
   final List _data;
   Map _columnToIndex;
 
