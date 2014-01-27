@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <include/dart_api.h>
+#include </Users/freewind/Downloads/dart/dart-sdk/include/dart_api.h>
 
 #define DART_ARG(name, i)                                     \
   Dart_Handle name = Dart_GetNativeArgument(arguments, i);
@@ -35,7 +35,7 @@
     return;                                                   \
   }
 
-Dart_NativeFunction ResolveName(Dart_Handle name, int argc);
+Dart_NativeFunction ResolveName(Dart_Handle name, int argc, bool* auto_setup_scope);
 
 static Dart_PersistentHandle g_library;
 
@@ -334,7 +334,7 @@ DART_FUNCTION(CloseStatement) {
   if (!strcmp(#func, cname) && argc == args) { \
     return func;                               \
   }
-Dart_NativeFunction ResolveName(Dart_Handle name, int argc) {
+Dart_NativeFunction ResolveName(Dart_Handle name, int argc, bool* auto_setup_scope) {
   const char* cname;
   Dart_Handle check_error = Dart_StringToCString(name, &cname);
   if (Dart_IsError(check_error)) Dart_PropagateError(check_error);
